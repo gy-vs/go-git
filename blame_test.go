@@ -25,7 +25,7 @@ func (s *BlameSuite) TestNewLines() {
 	lines := newLines([]string{"foo"}, []*object.Commit{{
 		Hash:    h,
 		Message: "foo",
-	}})
+	}}, nil, nil)
 
 	s.Len(lines, 1)
 	s.Equal("foo", lines[0].Text)
@@ -36,7 +36,7 @@ func (s *BlameSuite) TestNewLinesWithNewLine() {
 	lines := newLines([]string{"foo", ""}, []*object.Commit{
 		{Message: "foo"},
 		{Message: "bar"},
-	})
+	}, nil, nil)
 
 	s.Len(lines, 2)
 	s.Equal("foo", lines[0].Text)

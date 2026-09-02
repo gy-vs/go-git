@@ -2004,6 +2004,49 @@ func (r *Repository) ResolveRevision(in plumbing.Revision) (*plumbing.Hash, erro
 	return &commit.Hash, nil
 }
 
+// BlameWithOptions returns a BlameResult with the information about the last
+// author of each line of the file given in the options at the revision given
+// in the options. It behaves like Blame, but ignores the revisions in
+// IgnoreRevs and IgnoreRevsFile when assigning blame, mirroring git's
+// --ignore-rev and --ignore-revs-file.
+//
+// The revision to blame and the ignored revisions may be given as hashes or
+// revision expressions such as branch names, tags or "HEAD~1".
+func (r *Repository) BlameWithOptions(opts *BlameOptions) (*BlameResult, error) {
+	if opts == nil {
+		return nil, errors.New("blame: options must not be nil")
+	}
+
+	revHash, err := r.ResolveRevision(opts.Rev)
+	if err != nil {
+		return nil, fmt.Errorf("cannot resolve revision %q to blame: %w", opts.Rev, err)
+	}
+	c, err := r.CommitObject(*revHash)
+	if err != nil {
+		return nil, err
+	}
+
+	ignoreRevs := make(map[plumbing.Hash]struct{})
+	for _, rev := range opts.IgnoreRevs {
+		hash, err := r.ResolveRevision(rev)
+		if err != nil {
+			return nil, fmt.Errorf("cannot find revision %s to ignore: %w", rev, err)
+		}
+		ignoreRevs[*hash] = struct{}{}
+	}
+	if opts.IgnoreRevsFile != "" {
+		hashes, err := parseIgnoreRevsFile(opts.IgnoreRevsFile)
+		if err != nil {
+			return nil, err
+		}
+		for _, hash := range hashes {
+			ignoreRevs[hash] = struct{}{}
+		}
+	}
+
+	return doBlame(c, opts.Path, ignoreRevs)
+}
+
 // resolveHashPrefix returns a list of potential hashes that the given string
 // is a prefix of. It quietly swallows errors, returning nil.
 func (r *Repository) resolveHashPrefix(hashStr string) []plumbing.Hash {
